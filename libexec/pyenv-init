@@ -60,6 +60,9 @@ if [ -z "$print" ]; then
   fish )
     profile='~/.config/fish/config.fish'
     ;;
+  es )
+    profile='~/.esrc'
+    ;;
   * )
     profile='your profile'
     ;;
@@ -71,6 +74,9 @@ if [ -z "$print" ]; then
     case "$shell" in
     fish )
       echo 'pyenv init - | source'
+      ;;
+    es )
+      echo 'eval `{pyenv init -}'
       ;;
     * )
       echo 'eval "$(pyenv init -)"'
@@ -89,6 +95,11 @@ fish )
   echo "set -gx PATH '${PYENV_ROOT}/shims' \$PATH"
   echo "set -gx PYENV_SHELL $shell"
 ;;
+es )
+  echo "path = ${PYENV_ROOT}/shims \$path;"
+  echo "PYENV_SHELL = $shell;"
+  echo 'noexport = PYENV_VERSION_OLD $noexport;'
+;;
 * )
   echo 'export PATH="'${PYENV_ROOT}'/shims:${PATH}"'
   echo "export PYENV_SHELL=$shell"
@@ -101,7 +112,14 @@ if [ -r "$completion" ]; then
 fi
 
 if [ -z "$no_rehash" ]; then
-  echo 'command pyenv rehash 2>/dev/null'
+  case "$shell" in
+  es )
+    echo 'command pyenv rehash >[2]/dev/null;'
+    ;;
+  *)
+    echo 'command pyenv rehash 2>/dev/null'
+    ;;
+  esac
 fi
 
 commands=(`pyenv-commands --sh`)
@@ -127,6 +145,17 @@ function pyenv {
   typeset command
 EOS
   ;;
+es )
+  cat <<EOS
+fn pyenv command args {
+  if {~ \$command ${commands[*]}} {
+    eval \`\` () {pyenv sh-\$command \$args}
+  } {
+    command pyenv \$command \$args
+  }
+}
+EOS
+  ;;
 * )
   cat <<EOS
 pyenv() {
@@ -135,7 +164,7 @@ EOS
   ;;
 esac
 
-if [ "$shell" != "fish" ]; then
+if [ "$shell" != "fish" -a "$shell" != "es" ]; then
 IFS="|"
 cat <<EOS
   command="\${1:-}"
